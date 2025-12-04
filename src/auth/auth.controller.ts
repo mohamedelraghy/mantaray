@@ -31,7 +31,6 @@ export class AuthController {
   @ApiOperation({ summary: 'Signup endpoint' })
   async signup(@Body() signupDto: SignupDto) {
     try {
-      //* 1 - create User
       const user = await this.authService.signup(signupDto);
 
       return { user };
@@ -53,7 +52,6 @@ export class AuthController {
   ) {
     this.addJwtToCookie(req, res);
 
-    // TODO: clean up
     return { token: req.session.jwt, user: req.user };
   }
 

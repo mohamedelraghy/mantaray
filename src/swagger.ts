@@ -1,16 +1,15 @@
 import { INestApplication } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-
-import { ConfigService } from './config/config.services';
+import { ConfigService } from '@nestjs/config';
 
 export function initSwagger(
   app: INestApplication,
-  config: ConfigService,
+  configService: ConfigService,
 ): void {
   const options = new DocumentBuilder()
-    .setTitle('Mantaray task')
-    .setDescription('Mantaray task Api documentation')
-    .setExternalDoc('Postman Collection', config.apiUrl + '-json')
+    .setTitle('Profolio task')
+    .setDescription('Profolio task Api documentation')
+    .setExternalDoc('Postman Collection', configService.get<string>('API_URL') + '-json')
     .addBearerAuth()
     .setVersion('1.0')
     .build();

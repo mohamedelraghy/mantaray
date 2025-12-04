@@ -1,8 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
-
 import { SuperAdminInitService } from './super-admin-init.service';
-import { ConfigService } from '../../config/config.services';
+import { ConfigService } from '@nestjs/config';
 import { getModelToken } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { User, UserDoc } from '../../users/entities/user.entity';
@@ -38,8 +37,13 @@ describe('SuperAdminInitService', () => {
         {
           provide: ConfigService,
           useValue: {
-            superAdminEmail: 'admin@example.com',
-            superAdminPassword: 'admin123',
+            get: jest.fn((key: string) => {
+              const config = {
+                'SUPER_ADMIN_EMAIL': 'admin@example.com',
+                'SUPER_ADMIN_PASSWORD': 'admin123',
+              };
+              return config[key];
+            }),
           },
         },
       ],
@@ -63,12 +67,12 @@ describe('SuperAdminInitService', () => {
       await service.initializeSuperAdmin();
 
       expect(userModel.findOne).toHaveBeenCalledWith({
-        email: configService.superAdminEmail,
+        email: configService.get('SUPER_ADMIN_EMAIL'),
         role: RoleEnum.SUPER_ADMIN,
       });
       expect(userModel.create).toHaveBeenCalledWith({
-        email: configService.superAdminEmail,
-        password: configService.superAdminPassword,
+        email: configService.get('SUPER_ADMIN_EMAIL'),
+        password: configService.get('SUPER_ADMIN_PASSWORD'),
         name: 'Super Admin',
         role: RoleEnum.SUPER_ADMIN,
         credits: 0,
@@ -83,7 +87,7 @@ describe('SuperAdminInitService', () => {
       await service.initializeSuperAdmin();
 
       expect(userModel.findOne).toHaveBeenCalledWith({
-        email: configService.superAdminEmail,
+        email: configService.get('SUPER_ADMIN_EMAIL'),
         role: RoleEnum.SUPER_ADMIN,
       });
       expect(userModel.create).not.toHaveBeenCalled();
@@ -103,16 +107,16 @@ describe('SuperAdminInitService', () => {
       const credentials = service.getSuperAdminCredentials();
 
       expect(credentials).toEqual({
-        email: configService.superAdminEmail,
-        password: configService.superAdminPassword,
+        email: configService.get('SUPER_ADMIN_EMAIL'),
+        password: configService.get('SUPER_ADMIN_PASSWORD'),
       });
     });
   });
 
   describe('environment configuration', () => {
     it('should use environment variables for super admin credentials', () => {
-      expect(configService.superAdminEmail).toBe('admin@example.com');
-      expect(configService.superAdminPassword).toBe('admin123');
+      expect(configService.get('SUPER_ADMIN_EMAIL')).toBe('admin@example.com');
+      expect(configService.get('SUPER_ADMIN_PASSWORD')).toBe('admin123');
     });
   });
 });

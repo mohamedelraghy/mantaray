@@ -3,7 +3,7 @@ import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { configure } from './config.main';
-import { ConfigService } from './config/config.services';
+import { ConfigService } from '@nestjs/config';
 import { SuperAdminInitService } from './core/services/super-admin-init.service';
 
 async function bootstrap() {
@@ -11,21 +11,19 @@ async function bootstrap() {
     logger: ['error', 'warn', 'debug', 'verbose', 'log'],
   });
 
-  const config = app.get(ConfigService);
+  const configService = app.get(ConfigService);
   const superAdminInitService = app.get(SuperAdminInitService);
-  const port = process.env.PORT || config.port || 3000;
+  const port = configService.get<number>('PORT') || 3000;
   
-  configure(app, config);
+  configure(app, configService);
 
-  // Initialize super admin user
   await superAdminInitService.initializeSuperAdmin();
 
-  // Get super admin credentials for logging
   const superAdminCredentials = superAdminInitService.getSuperAdminCredentials();
 
   await app.listen(port, () => {
     Logger.verbose(
-      `🚀 Server listening on PORT:${port} | ${config.nodeEnv} | ${config.apiUrl} | Super Admin: ${superAdminCredentials.email}:${superAdminCredentials.password}`,
+      `🚀 Server listening on PORT:${port} | ${configService.get('NODE_ENV')} | ${configService.get('API_URL')} | Super Admin: ${superAdminCredentials.email}:${superAdminCredentials.password}`,
     );
   });
 }

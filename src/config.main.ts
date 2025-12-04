@@ -7,33 +7,30 @@ import * as session from 'express-session';
 import helmet from 'helmet';
 import * as passport from 'passport';
 import { join } from 'path';
-
-import { ConfigService } from './config/config.services';
+import { ConfigService } from '@nestjs/config';
 import { initSwagger } from './swagger';
 
 export function configure(
   app: NestExpressApplication,
-  config: ConfigService,
+  configService: ConfigService,
 ): void {
   app.useStaticAssets(join(__dirname, '..', 'upload'));
 
-  app.set('trust proxy', 1); // trust first proxy
+  app.set('trust proxy', 1);
+  const isProd = configService.get<string>('NODE_ENV') === 'production';
+  
   app.use(
-    // Set security-related HTTP headers
     helmet(),
-    // Compress response bodies for most requests
     compression(),
-    // Parse Cookie header and populate req.cookies with an object keyed by the cookie names
     cookieParser(),
-    // Simple cookie-based session middleware
     session({
-      secret: 'your-secret-key', // Replace with your secret key
+      secret: configService.get<string>('JWT_SECRET') || 'your-secret',
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: config.isProd, // Only use secure cookies in production
+        secure: isProd,
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        maxAge: 24 * 60 * 60 * 1000,
       },
     }),
 
@@ -41,15 +38,13 @@ export function configure(
 
     passport.session(),
 
-    // Basic rate-limiting middleware for Express
     rateLimit({
-      windowMs: 10 * 60 * 1000, // 1 Hour
-      max: config.rateLimit,
+      windowMs: 10 * 60 * 1000,
+      max: configService.get<number>('RATE_LIMIT') || 100,
       message: 'Too many requests, please try again later.',
     }),
   );
 
-  // Registers pipes as global pipes (will be used within every HTTP route handler)
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const allowedOrigins = [
@@ -68,9 +63,7 @@ export function configure(
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   });
 
-  // Registers a prefix for every HTTP route path.
-  app.setGlobalPrefix(config.globalPrefix, { exclude: ['/', '/health'] });
+  app.setGlobalPrefix(configService.get<string>('GLOBAL_PREFIX') || 'api', { exclude: ['/', '/health'] });
 
-  // Initialize swagger documentation
-  initSwagger(app, config);
+  initSwagger(app, configService);
 }

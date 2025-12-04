@@ -15,7 +15,6 @@ export class RoleGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    // *No Role specified for this route, allow access
     if (!requiredRoles) return true;
 
     const { user } = context.switchToHttp().getRequest();

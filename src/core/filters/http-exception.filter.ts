@@ -26,7 +26,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const requestId = request?.session?.id || 'unknown';
     const timestamp = new Date().toDateString();
 
-    // Catch HttpException
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const errorMessage = exception.getResponse() as HttpException;
@@ -44,7 +43,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
       return response.status(status).json(errorObject);
     }
 
-    // Catch all other exceptions with 5xx
     const status = exception.graph
       ? HttpStatus.BAD_REQUEST
       : HttpStatus.INTERNAL_SERVER_ERROR;
