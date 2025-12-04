@@ -18,9 +18,6 @@ export class User extends BaseEntity {
   @Prop({ type: String, required: true })
   name: string;
 
-  @Prop({ type: Number, default: 0 })
-  credits: number;
-
   @Prop({ type: String, enum: Object.values(RoleEnum) })
   role: RoleEnum;
 }
