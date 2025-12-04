@@ -20,6 +20,7 @@ import { RoleEnum } from './enums/role.enum';
 import { UsersService } from './users.service';
 import { ApiOperation } from '@nestjs/swagger';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @Controller('users')
 
@@ -42,6 +43,14 @@ export class UsersController {
   @Roles(RoleEnum.SUPER_ADMIN, RoleEnum.USER)
   updateMe(@Req() req: RequestWithUser, @Body() updateProfileDto: UpdateProfileDto) {
     return this.usersService.update(req.user._id, updateProfileDto);
+  }
+
+  @Patch('/me/password')
+  @ApiOperation({ summary: 'Update user password' })
+  @UseGuards(JwtAuthGuard, RoleGuard)
+  @Roles(RoleEnum.SUPER_ADMIN, RoleEnum.USER)
+  updatePasswordMe(@Req() req: RequestWithUser, @Body() updatePasswordDto: UpdatePasswordDto) {
+    return this.usersService.updatePasswordMe(req.user._id.toString(), updatePasswordDto);
   }
 
   @Post('search')

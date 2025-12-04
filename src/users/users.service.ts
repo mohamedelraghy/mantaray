@@ -1,11 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import * as bcrypt from 'bcrypt';
 
 import { Pagination } from '../core/shared/pagination.dto';
 import { SearchOptions } from '../core/shared/searchOptions.dto';
 import { BaseService } from '../core/shared/base.service';
 import { User, UserDoc } from './entities/user.entity';
+import { UpdatePasswordDto } from './dto/update-password.dto';
+import { InvalidCredentialsException } from 'src/core/exceptions/invalid-credentials.exceptions';
 
 @Injectable()
 export class UsersService extends BaseService<UserDoc> {
@@ -81,5 +84,22 @@ export class UsersService extends BaseService<UserDoc> {
         ],
       },
     });
+  }
+
+  async updatePasswordMe(id: string, updatePasswordDto: UpdatePasswordDto) {
+    const user = await this.findOneById(id);
+    const isPasswordValid = await bcrypt.compare(updatePasswordDto.oldPassword, user.password);
+    if (!isPasswordValid) {
+      throw new InvalidCredentialsException();
+    }
+    if (updatePasswordDto.password !== updatePasswordDto.confirmPassword) {
+      throw new BadRequestException('Passwords do not match');
+    }
+    user.password = updatePasswordDto.password;
+    await this.update(id, { password: updatePasswordDto.password });
+
+    return {
+      message: 'Password updated successfully',
+    };
   }
 }
