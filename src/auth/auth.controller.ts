@@ -1,10 +1,7 @@
 import {
-  BadGatewayException,
-  BadRequestException,
   Body,
   Controller,
   HttpCode,
-  HttpException,
   HttpStatus,
   Post,
   Req,
@@ -19,6 +16,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
+import { SuccessMessage } from 'src/core/decorators/success-message.decorator';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -28,40 +26,27 @@ export class AuthController {
   ) {}
 
   @Post('signup')
+  @SuccessMessage('User signed up successfully')
   @ApiOperation({ summary: 'Signup endpoint' })
   async signup(@Body() signupDto: SignupDto) {
-    try {
-      const user = await this.authService.signup(signupDto);
-
-      return { user };
-    } catch (error) {
-      if (error instanceof HttpException)
-        throw new BadRequestException(error.getResponse());
-      else throw new BadGatewayException(error.toString());
-    }
+    return await this.authService.signup(signupDto);
   }
 
   @UseGuards(LocalAuthGuard)
   @HttpCode(HttpStatus.OK)
   @ApiBody({ type: LoginDto })
+  @SuccessMessage('User logged in successfully')
   @ApiOperation({ summary: 'Login endpoint' })
   @Post('login')
   async login(
     @Req() req: RequestWithUser,
     @Res({ passthrough: true }) res: Response,
   ) {
-    this.addJwtToCookie(req, res);
+    const loginResult = await this.authService.login(req.user);
+    
+    req.session.jwt = loginResult.token;
+    res.cookie('jwt', loginResult.token, { httpOnly: true });
 
-    return { token: req.session.jwt, user: req.user };
-  }
-
-  private addJwtToCookie(req: RequestWithUser, res: Response) {
-    try {
-      const token = this.authService.generateJwtToken(req.user).access_token;
-      req.session.jwt = token;
-      res.cookie('jwt', token, { httpOnly: true });
-    } catch (error) {
-      throw new BadGatewayException(error.toString());
-    }
+    return loginResult;
   }
 }

@@ -1,4 +1,4 @@
-import { isEmpty } from 'lodash';
+
 import { Document, Model, Types } from 'mongoose';
 
 import {
@@ -7,11 +7,8 @@ import {
   RecordNotFoundException,
 } from '../exceptions';
 import { Pagination } from '../shared/pagination.dto';
-import {
-  arrayToProjection,
-  toPipelineStage,
-} from '../utils/mongo.util';
 import { Populate } from '../interfaces/mongo-population.interface';
+import { QueryOptions } from './query-options.interface';
 
 export class BaseService<T> {
   constructor(protected model: Model<T & Document>) {}
@@ -20,11 +17,6 @@ export class BaseService<T> {
     if (!Types.ObjectId.isValid(id)) throw new InvalidIdException();
 
     return typeof id === 'string' ? new Types.ObjectId(id) : id;
-  }
-
-  public sort(aggregation: Record<string, any>[], sort: string, dir: string) {
-    if (dir === 'asc') aggregation.push({ $sort: { [sort]: 1 } });
-    else aggregation.push({ $sort: { [sort]: -1 } });
   }
 
   async updateById(
@@ -38,62 +30,23 @@ export class BaseService<T> {
       { new: true, projection },
     );
     if (!doc) {
-      throw new RecordNotFoundException(this.model.modelName);
+      throw new RecordNotFoundException(this.model.modelName, id.toString());
     }
 
     return doc as unknown as T;
-  }
-
-  public filter(
-    aggregation: Record<string, any>[],
-    filterBy: Record<string, any>[],
-  ) {
-    const matchQry: Record<string, any>[] = [];
-    for (const filter of filterBy) {
-      if (!isEmpty(filter)) matchQry.push(toPipelineStage(filter));
-    }
-
-    if (matchQry.length) aggregation.push({ $match: { $and: matchQry } });
-  }
-
-  public project(
-    aggregation: Record<string, any>[],
-    attributes: string[],
-  ): void {
-    aggregation.push({ $project: arrayToProjection(attributes) });
-  }
-
-  public paginate(
-    aggregation: Record<string, any>[],
-    offset: number,
-    size: number,
-  ): void {
-    aggregation.push({ $skip: offset }, { $limit: size });
-  }
-
-  public async exists(filter: Record<string, any>) {
-    return await this.model.exists(filter);
-  }
-
-  public async count(filter: Record<string, any>): Promise<number> {
-    return await this.model.countDocuments(filter);
   }
 
   async create(model: any): Promise<T> {
     try {
       const doc = await this.model.create(model);
       return doc as T;
-    } catch (err) {
+    } catch (err: any) {
       if (err.code === 11000) {
-        throw new RecordExistsException(this.model.modelName);
+        const duplicateField = err.keyPattern ? Object.keys(err.keyPattern)[0] : undefined;
+        const duplicateValue = err.keyValue ? err.keyValue[duplicateField || ''] : undefined;
+        throw new RecordExistsException(this.model.modelName, duplicateField, duplicateValue);
       }
       throw err;
-    }
-  }
-
-  async bulkWrite(writes: Array<any>): Promise<any> {
-    if (writes.length) {
-      return await this.model.bulkWrite(writes);
     }
   }
 
@@ -120,15 +73,80 @@ export class BaseService<T> {
       .findById(this.toObjectId(id), projection)
       .exec();
     if (!doc) {
-      throw new RecordNotFoundException(this.model.modelName);
+      throw new RecordNotFoundException(this.model.modelName, id.toString());
     }
 
     return doc as T;
   }
 
-  async find(filter: any = {}, projection: any = {}): Promise<T[]> {
-    const docs = await this.model.find(filter, projection).exec();
-    return docs as unknown[] as T[];
+  async find(
+    filter: any = {},
+    projection: any = {},
+    queryOptions?: QueryOptions,
+  ): Promise<Pagination | T[]> {
+    if (!queryOptions) {
+      const docs = await this.model.find(filter, projection).exec();
+      return docs as unknown[] as T[];
+    }
+
+    const {
+      page = 1,
+      limit = 10,
+      search,
+      searchFields = [],
+      sort = 'createdAt',
+      order = 'desc',
+      ...dynamicFilters
+    } = queryOptions;
+
+    const query: any = { ...filter };
+
+    if (search) {
+      if (searchFields && searchFields.length > 0) {
+        query.$or = searchFields.map((field) => ({
+          [field]: { $regex: search, $options: 'i' },
+        }));
+      }
+    }
+
+    Object.keys(dynamicFilters).forEach((key) => {
+      const value = dynamicFilters[key];
+
+      if (value === undefined || value === null || value === '') {
+        return;
+      }
+
+      if (key.toLowerCase().startsWith('min')) {
+        const fieldName = key.replace(/^min/i, '').toLowerCase();
+        query[fieldName] = { ...query[fieldName], $gte: Number(value) };
+      } else if (key.toLowerCase().startsWith('max')) {
+        const fieldName = key.replace(/^max/i, '').toLowerCase();
+        query[fieldName] = { ...query[fieldName], $lte: Number(value) };
+      } else if (!['page', 'limit', 'search', 'searchFields', 'sort', 'order'].includes(key)) {
+        query[key] = value;
+      }
+    });
+
+    const skip = (page - 1) * limit;
+    const sortOrder = order === 'asc' ? 1 : -1;
+
+    const [docs, total] = await Promise.all([
+      this.model
+        .find(query, projection)
+        .sort({ [sort]: sortOrder })
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.model.countDocuments(query).exec(),
+    ]);
+
+    return new Pagination({
+      content: docs as unknown[] as T[],
+      count: total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
   }
 
   async update(
@@ -145,7 +163,7 @@ export class BaseService<T> {
       },
     );
     if (!doc) {
-      throw new RecordNotFoundException(this.model.modelName);
+      throw new RecordNotFoundException(this.model.modelName, id.toString());
     }
 
     return doc as T;
@@ -154,24 +172,7 @@ export class BaseService<T> {
   async remove(id: string | Types.ObjectId) {
     const doc = await this.model.findByIdAndDelete(this.toObjectId(id));
     if (!doc) {
-      throw new RecordNotFoundException(this.model.modelName);
-    }
-
-    return true;
-  }
-  async removeAll(filter: any) {
-    const doc = await this.model.deleteMany(filter);
-    if (!doc) {
-      throw new RecordNotFoundException(this.model.modelName);
-    }
-
-    return true;
-  }
-
-  async removeOne(filter: any) {
-    const doc = await this.model.findOneAndDelete(filter);
-    if (!doc) {
-      throw new RecordNotFoundException(this.model.modelName);
+      throw new RecordNotFoundException(this.model.modelName, id.toString());
     }
 
     return true;

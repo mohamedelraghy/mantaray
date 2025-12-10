@@ -1,14 +1,10 @@
 import {
-  BadRequestException,
   Injectable,
-  NotFoundException,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
-import { InvalidCredentialsException } from '../core/exceptions';
-import { LoginDto } from './dto/login.dto';
+import { InvalidCredentialsException, RecordNotFoundException } from '../core/exceptions';
 import { SignupDto } from './dto/signup.dto';
 import { UserDoc } from '../users/entities/user.entity';
 import { RoleEnum } from '../users/enums/role.enum';
@@ -22,39 +18,16 @@ export class AuthService {
   ) {}
 
   async signup(signupDto: SignupDto) {
-    try {
-      const user = await this.usersService.create({
-        ...signupDto,
-        role: RoleEnum.USER,
-      });
-      const payload = { sub: user?._id, email: user?.email };
+    const user = await this.usersService.create({
+      ...signupDto,
+      role: RoleEnum.USER,
+    });
+    const payload = { sub: user?._id, email: user?.email };
 
-      const { password, ...userWithoutPassword } = user.toObject?.() || user;
-
-      return {
-        ...userWithoutPassword,
-        access_token: this.jwtService.sign(payload),
-      };
-    } catch (e) {
-      throw new BadRequestException(e.toString());
-    }
-  }
-
-  async login(loginDto: LoginDto) {
-    const user = await this.usersService.findByEmail(loginDto.email);
-    const isPasswordValid = await bcrypt.compare(
-      loginDto.password,
-      user.password,
-    );
-
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    const payload = { sub: user._id, email: user.email };
+    const { password, ...userWithoutPassword } = user.toObject?.() || user;
 
     return {
-      user,
+      ...userWithoutPassword, 
       access_token: this.jwtService.sign(payload),
     };
   }
@@ -64,6 +37,18 @@ export class AuthService {
     return { access_token: this.jwtService.sign(payload) };
   }
 
+  async login(user: UserDoc): Promise<{ token: string; user: any }> {
+    const token = this.generateJwtToken(user).access_token;
+    
+    const userDoc = user.toObject?.() || user;
+    const { password, ...userWithoutPassword } = userDoc;
+
+    return {
+      token,
+      user: userWithoutPassword,
+    };
+  }
+
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.usersService.findOne({ email });
 
@@ -71,7 +56,7 @@ export class AuthService {
       const isPasswordValid = await bcrypt.compare(pass, user.password);
       if (!isPasswordValid) throw new InvalidCredentialsException();
     } else {
-      throw new NotFoundException({ message: 'User not found' });
+      throw new RecordNotFoundException('user', 'email', email);
     }
 
     const userDoc = user.toJSON();

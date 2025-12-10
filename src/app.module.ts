@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { CoreModule } from './core/core.module';
 import { LoggingInterceptor } from './core/interceptors/logging.interceptor';
+import { ResponseInterceptor } from './core/interceptors/response.interceptor';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { HttpExceptionFilter } from './core/filters/http-exception.filter';
 import { validate } from './config/env.validation';
@@ -33,6 +34,7 @@ import { validate } from './config/env.validation';
   providers: [
     AppService,
     { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: ResponseInterceptor },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
   ],
 })

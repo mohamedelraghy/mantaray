@@ -5,13 +5,13 @@ import {
   Get,
   Param,
   Patch,
-  Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
 
 import { RequestWithUser } from '../core/interfaces/user-request.interface';
-import { SearchOptions } from '../core/shared/searchOptions.dto';
+import { QueryParamsDto } from '../core/shared/query-params.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RoleGuard } from '../auth/guards/role.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -53,12 +53,19 @@ export class UsersController {
     return this.usersService.updatePasswordMe(req.user._id.toString(), updatePasswordDto);
   }
 
-  @Post('search')
-  @ApiOperation({ summary: 'Search for users - Super Admin Only' })
+  @Get()
+  @ApiOperation({ summary: 'Get all users with filtering - Super Admin Only' })
   @UseGuards(JwtAuthGuard, RoleGuard)
   @Roles(RoleEnum.SUPER_ADMIN)
-  findAll(@Body() options: SearchOptions) {
-    return this.usersService.findAll(options);
+  findAll(@Query() queryParams: QueryParamsDto) {
+    return this.usersService.find(
+      {},
+      {},
+      {
+        ...queryParams,
+        searchFields: ['email', 'name'],
+      },
+    );
   }
 
   @Get(':id')
