@@ -22,7 +22,7 @@ export class Pagination {
       totalItems: this.count || 0,
       itemsPerPage: this.limit || 10,
       hasNextPage: (this.page || 1) < (this.totalPages || 0),
-      hasPreviousPage: (this.page || 1) > 1,
+      hasPreviousPage: (this.page || 1) > 1
     };
   }
 }

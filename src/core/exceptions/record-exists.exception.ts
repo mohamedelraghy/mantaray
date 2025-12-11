@@ -6,7 +6,7 @@ export class RecordExistsException extends ConflictException {
   public readonly value?: string;
 
   constructor(record: string, field?: string, value?: string) {
-    const fieldName = field || 'record';
+    
     const message = field 
       ? `${record} with this ${field} already exists`
       : `${record} already exists`;

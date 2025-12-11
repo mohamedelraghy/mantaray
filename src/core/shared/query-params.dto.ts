@@ -6,7 +6,7 @@ import {
   IsNumber,
   IsIn,
   Min,
-  Max,
+  Max
 } from 'class-validator';
 import { QueryOptions } from './query-options.interface';
 

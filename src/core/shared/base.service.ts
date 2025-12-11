@@ -4,10 +4,10 @@ import { Document, Model, Types } from 'mongoose';
 import {
   InvalidIdException,
   RecordExistsException,
-  RecordNotFoundException,
+  RecordNotFoundException
 } from '../exceptions';
-import { Pagination } from '../shared/pagination.dto';
 import { Populate } from '../interfaces/mongo-population.interface';
+import { Pagination } from '../shared/pagination.dto';
 import { QueryOptions } from './query-options.interface';
 
 export class BaseService<T> {
@@ -22,12 +22,12 @@ export class BaseService<T> {
   async updateById(
     id: string | Types.ObjectId,
     updates: any,
-    projection = {},
+    projection = {}
   ): Promise<T> {
     const doc = await this.model.findByIdAndUpdate(
       this.toObjectId(id),
       updates,
-      { new: true, projection },
+      { new: true, projection }
     );
     if (!doc) {
       throw new RecordNotFoundException(this.model.modelName, id.toString());
@@ -67,7 +67,7 @@ export class BaseService<T> {
 
   async findOneById(
     id: string | Types.ObjectId,
-    projection: any = {},
+    projection: any = {}
   ): Promise<T> {
     const doc = await this.model
       .findById(this.toObjectId(id), projection)
@@ -82,7 +82,7 @@ export class BaseService<T> {
   async find(
     filter: any = {},
     projection: any = {},
-    queryOptions?: QueryOptions,
+    queryOptions?: QueryOptions
   ): Promise<Pagination | T[]> {
     if (!queryOptions) {
       const docs = await this.model.find(filter, projection).exec();
@@ -103,13 +103,13 @@ export class BaseService<T> {
 
     if (search) {
       if (searchFields && searchFields.length > 0) {
-        query.$or = searchFields.map((field) => ({
-          [field]: { $regex: search, $options: 'i' },
+        query.$or = searchFields.map(field => ({
+          [field]: { $regex: search, $options: 'i' }
         }));
       }
     }
 
-    Object.keys(dynamicFilters).forEach((key) => {
+    Object.keys(dynamicFilters).forEach(key => {
       const value = dynamicFilters[key];
 
       if (value === undefined || value === null || value === '') {
@@ -137,7 +137,7 @@ export class BaseService<T> {
         .skip(skip)
         .limit(limit)
         .exec(),
-      this.model.countDocuments(query).exec(),
+      this.model.countDocuments(query).exec()
     ]);
 
     return new Pagination({
@@ -145,22 +145,22 @@ export class BaseService<T> {
       count: total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit),
+      totalPages: Math.ceil(total / limit)
     });
   }
 
   async update(
     id: string | Types.ObjectId,
     updates: any,
-    projection = {},
+    projection = {}
   ): Promise<T> {
     const doc = await this.model.findByIdAndUpdate(
       this.toObjectId(id),
       updates,
       {
         new: true,
-        projection,
-      },
+        projection
+      }
     );
     if (!doc) {
       throw new RecordNotFoundException(this.model.modelName, id.toString());
@@ -181,23 +181,23 @@ export class BaseService<T> {
   async aggregate(
     aggregation: any[],
     offset: number,
-    size: number,
+    size: number
   ): Promise<Pagination> {
     aggregation.push(
       {
         $group: {
           _id: null,
           content: { $push: '$$ROOT' },
-          count: { $sum: 1 },
-        },
+          count: { $sum: 1 }
+        }
       },
       {
         $project: {
           content: { $slice: ['$content', offset, size] },
           count: 1,
-          _id: 0,
-        },
-      },
+          _id: 0
+        }
+      }
     );
 
     const data = await this.model.aggregate(aggregation);
@@ -209,8 +209,15 @@ export class BaseService<T> {
     return data[0] as unknown as T;
   }
 
-  async populatePipeline(aggregation, populateParams: Populate) {
-    const { from, localField, foreignField, pipeline, as } = populateParams;
+  populatePipeline(aggregation, populateParams: Populate) {
+
+    const { 
+      from, 
+      localField, 
+      foreignField, 
+      pipeline, 
+      as 
+    } = populateParams;
 
     aggregation.push({
       $lookup: {
@@ -218,17 +225,18 @@ export class BaseService<T> {
         localField,
         foreignField,
         pipeline,
-        as,
-      },
+        as
+      }
     });
   }
 
-  async unwind(aggregation, path, returnEmptyArray = true) {
+  unwind(aggregation, path, returnEmptyArray = true) {
+    
     aggregation.push({
       $unwind: {
         path: `$${path}`,
-        preserveNullAndEmptyArrays: returnEmptyArray,
-      },
+        preserveNullAndEmptyArrays: returnEmptyArray
+      }
     });
   }
 }

@@ -1,5 +1,6 @@
 import { registerDecorator, ValidationOptions } from 'class-validator';
 import { Types } from 'mongoose';
+
 import { ObjectId } from '../utils/mongo.util';
 
 export function IsObjectId(validationOptions?: ValidationOptions) {
@@ -10,13 +11,13 @@ export function IsObjectId(validationOptions?: ValidationOptions) {
       propertyName,
       options: {
         ...validationOptions,
-        message: `${propertyName} is not a valid ObjectId`,
+        message: `${propertyName} is not a valid ObjectId`
       },
       validator: {
-        validate(value: any | ObjectId) {
+        validate(value: string | ObjectId) {
           return Types.ObjectId.isValid(value);
-        },
-      },
+        }
+      }
     });
   };
 }

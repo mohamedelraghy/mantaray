@@ -2,7 +2,7 @@ import {
   CallHandler,
   ExecutionContext,
   Logger,
-  NestInterceptor,
+  NestInterceptor
 } from '@nestjs/common';
 import { Observable, tap } from 'rxjs';
 
@@ -15,7 +15,7 @@ export class LoggingInterceptor implements NestInterceptor {
 
   intercept(
     context: ExecutionContext,
-    next: CallHandler<any>,
+    next: CallHandler<any>
   ): Observable<any> | Promise<Observable<any>> {
     const request = context.switchToHttp().getRequest();
     const method = request.method;
@@ -33,9 +33,9 @@ export class LoggingInterceptor implements NestInterceptor {
           method,
           url,
           responseTime,
-          requestId: request.session.id,
+          requestId: request.session.id
         });
-      }),
+      })
     );
   }
 }

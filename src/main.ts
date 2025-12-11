@@ -1,30 +1,35 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
-import { NestExpressApplication } from '@nestjs/platform-express';
-import { configure } from './config.main';
 import { ConfigService } from '@nestjs/config';
+import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
+
+import { AppModule } from './app/app.module';
+import { configure } from './app/app.setup';
 import { SuperAdminInitService } from './core/services/super-admin-init.service';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    logger: ['error', 'warn', 'debug', 'verbose', 'log'],
-  });
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   const configService = app.get(ConfigService);
-  const superAdminInitService = app.get(SuperAdminInitService);
   const port = configService.get<number>('PORT') || 3000;
-  
+  const superAdminInitService = app.get(SuperAdminInitService);
+
   configure(app, configService);
 
   await superAdminInitService.initializeSuperAdmin();
 
-  const superAdminCredentials = superAdminInitService.getSuperAdminCredentials();
+  const superAdminCredentials =
+    superAdminInitService.getSuperAdminCredentials();
 
-  await app.listen(port, () => {
-    Logger.verbose(
-      `🚀 Server listening on PORT:${port} | ${configService.get('NODE_ENV')} | ${configService.get('API_URL')} | Super Admin: ${superAdminCredentials.email}:${superAdminCredentials.password}`,
-    );
-  });
+  await app.listen(port);
+
+  Logger.verbose(
+    '\n 🚀 Server started' +
+    `\n 🔌 Port: ${port}` +
+    `\n 🌀 Environment: ${process.env.NODE_ENV}` +
+    `\n 📒 API Docs: ${configService.get('API_URL')}` +
+    `\n 🙎‍♂️ Super Admin: ${superAdminCredentials.email}:${superAdminCredentials.password}`
+  );
 }
-bootstrap();
+void bootstrap();
